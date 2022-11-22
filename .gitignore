@@ -1,0 +1,10 @@
+node_modules
+.idea
+
+#Hardhat files
+typechain/
+cache/
+artifacts/
+
+.env
+package-lock.json
