@@ -2,12 +2,10 @@ const hre = require("hardhat");
 const IUniswapV2Pair = require("../artifacts/contracts/interfaces/IUniswapV2Pair.sol/IUniswapV2Pair.json");
 const ethers = hre.ethers;
 
+/* UniswapFactory, Pair 배포 */
 async function main() {
-  // - 팩토리 컨트랙트 배포
-  // - erc20-erc20 페어 만들기
-  // - 토큰 컨트랙트 2개 배포해보기
-  // - 페어 컨트랙트 인스턴스 만들기
-    const [deployer] = await ethers.getSigners();
+    const [deployer, ...others] = await ethers.getSigners();
+    console.log("deployer address:", deployer.address);
     const Factory = await ethers.getContractFactory("TestUniswapV2Factory");
     const factoryInstance = await Factory.deploy(deployer.address);
     console.log("Deploying Uniswap Factory contract");
@@ -28,22 +26,21 @@ async function main() {
     const name2 = await tokenB.name();
     console.log(`Token 1 address : ${tokenB.address}, name: ${name2}`);
     
-    await factoryInstance.createPair(tokenA.address, tokenB.address)
+    const tx = await factoryInstance.createPair(tokenA.address, tokenB.address)
+    await tx.wait();
     const pairAddress = await factoryInstance.getPair(tokenA.address, tokenB.address)
     console.log("Factory creates pair : ", pairAddress);
-    //const pairInstance = new ethers.Contract(pairAddress, JSON.stringify(IUniswapV2Pair.abi), deployer).connect(deployer);
-    // Contract 객체를 직접 만드는게 아니라 getContractsAt을 써도 될 것 같다.
     const pairInstance = await ethers.getContractAt(IUniswapV2Pair.abi, pairAddress, deployer);
+    console.log("pair deploy: ", pairInstance.address);
 
     const token0Address = await pairInstance.token0()
     const token0 = tokenA.address === token0Address ? tokenA : tokenB
     const token1 = tokenA.address === token0Address ? tokenB : tokenA
 
-    console.log("pair deploy: ", pairInstance.address);
-    console.log("token0 Address:", token0Address);
+    console.log("token0 Address:", token0.address);
+    console.log("token1 Address:", token1.address);
 
     console.log("PAIR INIT CODE:", await factoryInstance.INIT_CODE_PAIR_HASH());
-    console.log("bytecode :", await factoryInstance.BYTECODE());
   }
   
 main()

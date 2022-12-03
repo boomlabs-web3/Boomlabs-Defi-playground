@@ -1,79 +1,90 @@
 const hre = require("hardhat");
 const IERC20 = require("../artifacts/contracts/interfaces/IERC20.sol/IERC20.json");
 const constants = require("ethers/constants");
-const utils = require('ethers/utils');
 const IUniswapV2Pair = require("../artifacts/contracts/interfaces/IUniswapV2Pair.sol/IUniswapV2Pair.json");
-const UniswapV2Pair = require("../../v2-core/artifacts/contracts/UniswapV2Pair.sol/TestUniswapV2Pair.json");
-
+const FactoryContract = require("../../v2core/artifacts/contracts/UniswapV2Factory.sol/TestUniswapV2Factory.json")
 const ethers = hre.ethers;
 
 async function main() {
 
     const overrides = {
-        gasLimit: 9999999
+        gasLimit: 999999,
+        maxPriorityFeePerGas: ethers.BigNumber.from(40000000000),
+        maxFeePerGas: ethers.BigNumber.from(40000000000),
       }
-    // - weth11 컨트랙트 배포
-    // - router2 컨트랙트 배포(팩토리 주소, WETH 주소 필요)
-    const factoryAddress = "0xab16A69A5a8c12C732e0DEFF4BE56A70bb64c926";
-    const daiAddress = "0xE3011A37A904aB90C8881a99BD1F6E21401f1522";
-    const usdcAddress = "0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82";
-    const pairAddress = "0xEa94A92C2CB8330F92Ee5d0Ba1DD93E791D47852";
+      const factoryAddress = "0xC72C1FA89ff0F0a6F7f7cf1d228B3D0431F334A5";
+      const daiAddress = "0x61f10d000E38A64996677D14C70D33f6D6cA6C4b";
+      const usdcAddress = "0x287c0397B93966fbBb18eCE981A98dCD17b5CB7C";
+      const pairAddress = "0xE4C8110bbeEBA9C6E4349cb2443eE28aE0b6FE90";
 
-    const [deployer] = await ethers.getSigners();
-    const WETH = await ethers.getContractFactory("WETH11", deployer);
-    const weth = await WETH.deploy();
-    console.log("Deploying WETH");
-    await weth.deployed();
-    const name = await weth.name();
-    console.log(`WETH address : ${weth.address}, name: ${name}`);
+      const [deployer, ...others] = await ethers.getSigners();    
+      console.log("deployer address : ", deployer.address);
+      
+     
+      const factory = await ethers.getContractAt(FactoryContract.abi, factoryAddress, deployer);  
+     
+      
+      console.log("PAIR INIT CODE:", await factory.INIT_CODE_PAIR_HASH());
+      const DAI = await ethers.getContractAt(IERC20.abi, daiAddress, deployer);  
+      // console.log("Dai instance : ", DAI);  
+      const USDC = await ethers.getContractAt(IERC20.abi, usdcAddress, deployer);
+      const WETH = await ethers.getContractFactory("WETH11", deployer);
+      
+      // const beforeDaiBalance = await DAI.balanceOf(deployer.address);
+      // console.log("My DAI balance :", beforeDaiBalance / (10**18));
+      // const beforeUsdcBalance = await USDC.balanceOf(deployer.address);
+      // console.log("My USDC balance :", beforeUsdcBalance / (10**18));
 
-    const Router = await ethers.getContractFactory("UniswapV2Router02", deployer);
-    const router = await Router.deploy(factoryAddress ,weth.address);
-    console.log("Deploying Uniswap Router02 contract");
-    await router.deployed();
-    console.log(`Router deployed to : ${router.address}`);
+      const weth = await WETH.deploy();
+      console.log("Deploying WETH");
+      await weth.deployed();
+      const name = await weth.name();
+      console.log(`WETH address : ${weth.address}, name: ${name}`);
+      
+      const Router = await ethers.getContractFactory("UniswapV2Router02", deployer);
+      // router2 Contract(팩토리 주소, WETH 주소 필요)
+      const router = await Router.deploy(factoryAddress ,weth.address);
+      // const router = await Router.deploy(factoryAddress ,"0x3548D7Df58e09462123B69163316B6D61352719D");
+      console.log("Deploying Uniswap Router02 contract");
+      await router.deployed();
+      console.log(`Router deployed to : ${router.address}`);
+      // DAI, USDC router에게 Approve 하고 deployer에게 10000개씩 transfer
+      const Daitx = await DAI.approve(router.address, constants.MaxUint256);
+      await Daitx.wait();
+      console.log("DAI Approve");
+      const Usdctx = await USDC.approve(router.address, constants.MaxUint256);
+      await Usdctx.wait();
+      console.log("USDC Approve");
+      // const beforeDaiBalance = await DAI.balanceOf(deployer.address);
+      const code = await deployer.provider.getCode(daiAddress);
+      // console.log("Code : ", code);
+      const totalSupply = await DAI.totalSupply();
+      console.log("DAi supply :", totalSupply / (10**18));
+      // console.log("My DAI balance :", totalSupply / (10**18));
+      const beforeUsdcBalance = await USDC.balanceOf(deployer.address);
+      console.log("My USDC balance :", beforeUsdcBalance / (10**18));
 
-    // DAI, USDC router에게 Approve 하고 deployer에게 100,100개씩 transfer
-    // 100,100개 씩 add liquidity호출
-    const DAI = await ethers.getContractAt(IERC20.abi, daiAddress, deployer);
-    // console.log("DAI object: ", DAI);
-    await DAI.approve(router.address, constants.MaxUint256);
-    console.log("DAI Approve");
-    const USDC = await ethers.getContractAt(IERC20.abi, usdcAddress, deployer);
-    await USDC.approve(router.address, constants.MaxUint256);
-    console.log("USDC Approve");
-    await DAI.transfer(deployer.address, utils.bigNumberify(10000));
-    const DAIBalance = await DAI.balanceOf(deployer.address);
-    console.log("My DAI balance :", DAIBalance / (10**18));
-
-    await USDC.transfer(deployer.address, utils.bigNumberify(10000));
-    const USDCBalance = await USDC.balanceOf(deployer.address);
-    console.log("My USDC balance :", USDCBalance / (10**18));
-    // 솔리디티의 keccak256(abi.encodePacked(type(TestUniswapV2Pair).creationCode)); 와 값이 똑같음.
-    const init_code = utils.keccak256(utils.toUtf8Bytes(`${UniswapV2Pair.bytecode}`));
-    console.log("init code :", init_code);
-
-    const pair = await ethers.getContractAt(IUniswapV2Pair.abi, pairAddress, deployer);
-    await pair.approve(router.address, constants.MaxUint256);
-
-    // DAI가 token0 address
-    await router.addLiquidity(
-        DAI.address,
-        USDC.address,
-        utils.bigNumberify(9000), // 100 정도로 잡으면 안되고 몇천 정도는 잡아야 함.
-        utils.bigNumberify(9000),
-        0,
-        0,
-        deployer.address,
-        constants.MaxUint256,
-        overrides
-    );
-
-    // pair balance 확인해서 liquidity 있는지 체크
-    const pairBalance = await pair.balanceOf(deployer.address);
-    console.log("My pair balance : ", pairBalance); 
-
- 
+      const pair = await ethers.getContractAt(IUniswapV2Pair.abi, pairAddress, deployer);
+      const pairapprovetx = await pair.approve(router.address, constants.MaxUint256);
+      await pairapprovetx.wait();
+      console.log("pair contract approve to Router2");
+      // DAI가 token0 address
+      const addtx = await router.addLiquidity(
+          daiAddress,
+          usdcAddress,
+          ethers.BigNumber.from("9000"), // 9000개 정도는 add 해야 함..
+          ethers.BigNumber.from("9000"),
+          0,
+          0,
+          deployer.address,
+          constants.MaxUint256,
+          overrides
+      );
+      await addtx.wait();
+      console.log("addLiquidity done");
+      // pair balance 확인해서 liquidity 있는지 체크
+      const pairBalance = await pair.balanceOf(deployer.address);
+      console.log("My pair balance : ", pairBalance); 
   }
   
 main()

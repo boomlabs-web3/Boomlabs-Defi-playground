@@ -48,9 +48,6 @@
     "prepublishOnly": "yarn test"
   },
   "license": "GPL-3.0-or-later",
-  "bugs": {
-    "url": "https://github.com/Uniswap/uniswap-v2-core/issues"
-  },
   "main": "index.js",
   "directories": {
     "test": "test"
