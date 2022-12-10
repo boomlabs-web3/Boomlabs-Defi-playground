@@ -3,6 +3,7 @@
 ### Contract Address 
 - RouterV2 Address : 0x664b0296D9d640C8a7CC1A3AbfEa4904962a3904
 - WETH Address : 0x54eea9738C4f1A42e3995b48d3855474917b87aA
+- DAI-wMATIC pair : 0x912B9Ce075fc0952c08070B0ddC2040632A5dd74
 
 ### Usage
 - `npm install`
